@@ -408,6 +408,10 @@ namespace plume {
         VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
         VkPhysicalDeviceProperties physicalDeviceProperties = {};
         VmaAllocator allocator = VK_NULL_HANDLE;
+        // Used by every pipeline creation when set. The owner fills it (from a
+        // previous run's data) right after createDevice, before any pipeline
+        // exists; the device destroys it.
+        VkPipelineCache pipelineCache = VK_NULL_HANDLE;
         uint32_t queueFamilyIndices[3] = {};
         std::vector<VulkanQueueFamily> queueFamilies;
         RenderDeviceCapabilities capabilities;
