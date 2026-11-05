@@ -541,6 +541,8 @@ namespace plume {
         switch (type) {
         case RenderDescriptorRangeType::CONSTANT_BUFFER:
             return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        case RenderDescriptorRangeType::CONSTANT_BUFFER_DYNAMIC:
+            return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
         case RenderDescriptorRangeType::FORMATTED_BUFFER:
             return VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER;
         case RenderDescriptorRangeType::READ_WRITE_FORMATTED_BUFFER:
@@ -3043,6 +3045,15 @@ namespace plume {
 
     void VulkanCommandList::setGraphicsDescriptorSet(RenderDescriptorSet *descriptorSet, uint32_t setIndex) {
         setDescriptorSet(VK_PIPELINE_BIND_POINT_GRAPHICS, activeGraphicsPipelineLayout, descriptorSet, setIndex);
+    }
+
+    void VulkanCommandList::setGraphicsDescriptorSet(RenderDescriptorSet *descriptorSet, uint32_t setIndex, const uint32_t *dynamicOffsets, uint32_t dynamicOffsetCount) {
+        assert(activeGraphicsPipelineLayout != nullptr);
+        assert(descriptorSet != nullptr);
+        assert(setIndex < activeGraphicsPipelineLayout->descriptorSetLayouts.size());
+
+        const VulkanDescriptorSet *interfaceSet = static_cast<const VulkanDescriptorSet *>(descriptorSet);
+        vkCmdBindDescriptorSets(vk, VK_PIPELINE_BIND_POINT_GRAPHICS, activeGraphicsPipelineLayout->vk, setIndex, 1, &interfaceSet->vk, dynamicOffsetCount, dynamicOffsets);
     }
 
     void VulkanCommandList::setGraphicsRootDescriptor(RenderBufferReference bufferReference, uint32_t rootDescriptorIndex) {

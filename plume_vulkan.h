@@ -335,6 +335,7 @@ namespace plume {
         void setGraphicsPipelineLayout(const RenderPipelineLayout *pipelineLayout) override;
         void setGraphicsPushConstants(uint32_t rangeIndex, const void *data, uint32_t offset = 0, uint32_t size = 0) override;
         void setGraphicsDescriptorSet(RenderDescriptorSet *descriptorSet, uint32_t setIndex) override;
+        void setGraphicsDescriptorSet(RenderDescriptorSet *descriptorSet, uint32_t setIndex, const uint32_t *dynamicOffsets, uint32_t dynamicOffsetCount) override;
         void setGraphicsRootDescriptor(RenderBufferReference bufferReference, uint32_t rootDescriptorIndex) override;
         void setRaytracingPipelineLayout(const RenderPipelineLayout *pipelineLayout) override;
         void setRaytracingPushConstants(uint32_t rangeIndex, const void *data, uint32_t offset = 0, uint32_t size = 0) override;

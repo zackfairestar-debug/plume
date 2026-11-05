@@ -35,6 +35,10 @@ namespace plume {
             return addRange(RenderDescriptorRange(RenderDescriptorRangeType::CONSTANT_BUFFER, binding, count, nullptr));
         }
 
+        uint32_t addConstantBufferDynamic(uint32_t binding, uint32_t count = 1) {
+            return addRange(RenderDescriptorRange(RenderDescriptorRangeType::CONSTANT_BUFFER_DYNAMIC, binding, count, nullptr));
+        }
+
         uint32_t addFormattedBuffer(uint32_t binding, uint32_t count = 1) {
             return addRange(RenderDescriptorRange(RenderDescriptorRangeType::FORMATTED_BUFFER, binding, count, nullptr));
         }
