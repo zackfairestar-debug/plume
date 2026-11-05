@@ -32,6 +32,18 @@
 // - Fix resource pools.
 
 namespace plume {
+    static std::atomic<uint64_t> statPasses{0};
+    static std::atomic<uint64_t> statPixels{0};
+    static std::atomic<uint64_t> statDraws{0};
+
+    VulkanPassStats takeVulkanPassStats() {
+        VulkanPassStats stats;
+        stats.passes = statPasses.exchange(0, std::memory_order_relaxed);
+        stats.pixels = statPixels.exchange(0, std::memory_order_relaxed);
+        stats.draws = statDraws.exchange(0, std::memory_order_relaxed);
+        return stats;
+    }
+
     // Backend constants.
 
     // Required buffer alignment for acceleration structures.
@@ -2200,6 +2212,7 @@ namespace plume {
 
         // Clamp the requested buffer count between the bounds of the surface capabilities.
         this->desc.textureCount = std::clamp(desc.textureCount, surfaceCapabilities.minImageCount, surfaceCapabilities.maxImageCount);
+        requestedTextureCount = this->desc.textureCount;
 
         uint32_t surfaceFormatCount = 0;
         vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, surface, &surfaceFormatCount, nullptr);
@@ -2353,7 +2366,10 @@ namespace plume {
 
         createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
         createInfo.surface = surface;
-        createInfo.minImageCount = desc.textureCount;
+        // Always ask for the original count. Asking for the count the last
+        // swap chain came back with lets drivers that add their own images
+        // (Android does) grow the chain on every resize.
+        createInfo.minImageCount = requestedTextureCount;
         createInfo.imageFormat = pickedSurfaceFormat.format;
         createInfo.imageColorSpace = pickedSurfaceFormat.colorSpace;
         createInfo.imageExtent.width = width;
@@ -2385,7 +2401,7 @@ namespace plume {
 
         uint32_t retrievedImageCount = 0;
         vkGetSwapchainImagesKHR(commandQueue->device->vk, vk, &retrievedImageCount, nullptr);
-        if (retrievedImageCount < desc.textureCount) {
+        if (retrievedImageCount < requestedTextureCount) {
             releaseSwapChain();
             fprintf(stderr, "Image count differs from the texture count.\n");
             return false;
@@ -2432,6 +2448,11 @@ namespace plume {
         // needsResize() will return as true as long as the created and required present mode do not match.
         if (immediatePresentModeSupported && !vsyncEnabled) {
             requiredPresentMode = VK_PRESENT_MODE_IMMEDIATE_KHR;
+        }
+        // Android offers no immediate mode. Mailbox still lets the frame rate
+        // run free instead of snapping a long frame to the next vblank.
+        else if (mailboxPresentModeSupported && !vsyncEnabled) {
+            requiredPresentMode = VK_PRESENT_MODE_MAILBOX_KHR;
         }
         // FIFO is guaranteed to be supported.
         else {
@@ -2949,6 +2970,7 @@ namespace plume {
     void VulkanCommandList::drawInstanced(uint32_t vertexCountPerInstance, uint32_t instanceCount, uint32_t startVertexLocation, uint32_t startInstanceLocation) {
         assert(activeGraphicsPipelineLayout != nullptr);
         checkActiveRenderPass();
+        statDraws.fetch_add(1, std::memory_order_relaxed);
 
         vkCmdDraw(vk, vertexCountPerInstance, instanceCount, startVertexLocation, startInstanceLocation);
     }
@@ -2956,6 +2978,7 @@ namespace plume {
     void VulkanCommandList::drawIndexedInstanced(uint32_t indexCountPerInstance, uint32_t instanceCount, uint32_t startIndexLocation, int32_t baseVertexLocation, uint32_t startInstanceLocation) {
         assert(activeGraphicsPipelineLayout != nullptr);
         checkActiveRenderPass();
+        statDraws.fetch_add(1, std::memory_order_relaxed);
 
         vkCmdDrawIndexed(vk, indexCountPerInstance, instanceCount, startIndexLocation, baseVertexLocation, startInstanceLocation);
     }
@@ -3499,6 +3522,8 @@ namespace plume {
             beginInfo.renderArea.extent.height = targetFramebuffer->height;
             vkCmdBeginRenderPass(vk, &beginInfo, VkSubpassContents::VK_SUBPASS_CONTENTS_INLINE);
             activeRenderPass = targetFramebuffer->renderPass;
+            statPasses.fetch_add(1, std::memory_order_relaxed);
+            statPixels.fetch_add(uint64_t(targetFramebuffer->width) * targetFramebuffer->height, std::memory_order_relaxed);
         }
     }
 

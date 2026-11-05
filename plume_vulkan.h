@@ -9,6 +9,7 @@
 
 #include "plume_render_interface.h"
 
+#include <atomic>
 #include <mutex>
 #include <set>
 #include <unordered_map>
@@ -221,6 +222,18 @@ namespace plume {
         static VkDescriptorPool createDescriptorPool(VulkanDevice *device, const std::unordered_map<VkDescriptorType, uint32_t> &typeCounts, bool lastRangeIsBoundless);
     };
 
+    // Render passes begun, the pixels their render areas covered and the
+    // draws recorded since the last call, across every command list. On a
+    // tiler each pass loads and stores its attachments, so passes and pixels
+    // are what the GPU pays in memory traffic.
+    struct VulkanPassStats {
+        uint64_t passes = 0;
+        uint64_t pixels = 0;
+        uint64_t draws = 0;
+    };
+
+    VulkanPassStats takeVulkanPassStats();
+
     struct VulkanSwapChain : RenderSwapChain {
         RenderSwapChainDesc desc;
         VkSwapchainKHR vk = VK_NULL_HANDLE;
@@ -230,6 +243,9 @@ namespace plume {
         std::unique_ptr<CocoaWindow> windowWrapper;
 #endif
         uint64_t presentCount = 0;
+        // What the caller asked for, clamped to the surface. desc.textureCount
+        // becomes what the driver handed back, which may be more.
+        uint32_t requestedTextureCount = 0;
         uint32_t width = 0;
         uint32_t height = 0;
         VkSwapchainCreateInfoKHR createInfo = {};
